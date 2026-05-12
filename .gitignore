@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Swift build artifacts
+swift-app/build/
+*.xcodeproj/xcuserdata/
+
+# Runtime state (lives in ~/Library/Application Support/jury/)
+quarantine.db
+state.json
+*.log
+
+# Local digest output
+cleanup-digest.md
+digest-preview.md
+
+# Editor
+.vscode/
+.idea/
+*.swp
