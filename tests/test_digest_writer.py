@@ -14,6 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import digest_writer
 from digest_writer import (
     render_action_tally,
     render_clusters,
@@ -27,6 +28,17 @@ from digest_writer import (
 )
 from probes import EOFYStatus, PortfolioStatus, TMStatus, iCloudStatus
 from scanner import Cluster, FileInfo, ScanResult
+
+
+@pytest.fixture(autouse=True)
+def _isolate_last_run_file(tmp_path, monkeypatch):
+    """Point LAST_RUN_FILE at a non-existent path so the rendered "Monitor
+    last ran" line is deterministic across machines. Otherwise the real
+    `~/Library/Application Support/jury/monitor.last_run` leaks today's
+    date into the digest and breaks overwrite/idempotency assertions
+    whenever the test runs on the same calendar day as that file's mtime.
+    """
+    monkeypatch.setattr(digest_writer, "LAST_RUN_FILE", tmp_path / "missing_monitor.last_run")
 
 
 # ---------------------------------------------------------------------------
