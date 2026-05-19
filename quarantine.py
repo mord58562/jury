@@ -334,12 +334,16 @@ def age_out(
 
 
 def _final_trash(path: Path) -> None:
+    # Escape backslash first, then double quote, so a filename containing
+    # either character produces valid AppleScript instead of unterminated
+    # strings or worse, injected commands. Same pattern as restore_command().
+    escaped = str(path).replace("\\", "\\\\").replace('"', '\\"')
     try:
         subprocess.run(
             [
                 "osascript",
                 "-e",
-                f'tell application "Finder" to delete POSIX file "{path}"',
+                f'tell application "Finder" to delete POSIX file "{escaped}"',
             ],
             capture_output=True,
             timeout=10,
