@@ -62,7 +62,7 @@ class TestClusterKey:
 # ---------------------------------------------------------------------------
 
 class TestClusterA:
-    def test_cluster_A_une_timetable_uuid_variants(self, cluster_a_docs):
+    def test_cluster_A_acme_timetable_uuid_variants(self, cluster_a_docs):
         """Five files from RECON Cluster A; expect one cluster with 5 members."""
         files = _collect_files(cluster_a_docs)
         clusters = find_clusters(files)
@@ -71,7 +71,7 @@ class TestClusterA:
 
 
 class TestClusterB:
-    def test_cluster_B_une_timetable_downloads_uuid_and_n(self, cluster_b_downloads):
+    def test_cluster_B_acme_timetable_downloads_uuid_and_n(self, cluster_b_downloads):
         """Downloads cluster B: URL-encoded + UUID + (n) variants all share one key."""
         files = _collect_files(cluster_b_downloads)
         clusters = find_clusters(files)

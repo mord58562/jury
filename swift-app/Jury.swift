@@ -2,12 +2,11 @@
 //
 // AppKit NSStatusItem + NSPopover hosting a SwiftUI panel. The dropdown
 // is laid out in the project's house voice: deadpan courtroom register,
-// formal procedural phrasing, no jokes. A contextual Latin motto at the
-// foot of the popover shifts subtly with state (easter egg).
+// formal procedural phrasing, no jokes.
 //
-// Menubar glyph: an outlined silhouette of a judicial wig, drawn as a
-// single NSBezierPath with stroke (not fill). Solid 1.5pt strokes so
-// @1x rendering on external monitors keeps the contour clean.
+// Menubar glyph: an outlined courthouse, drawn as a single NSBezierPath
+// with stroke (not fill). Solid 1.4pt strokes so @1x rendering on
+// external monitors keeps the contour clean.
 //
 // Idle resident memory: ~50 MB. Per popover open: one filesystem read,
 // ~1 ms. No timers, no polling.
@@ -104,18 +103,7 @@ struct Snapshot {
         return fmt.string(from: d)
     }
 
-    /// Contextual Latin maxim shown at the foot of the popover. Each is a
-    /// real classical phrase; the wit is in deploying them at the right
-    /// moment. The user who pays attention notices the shift.
-    ///   - default:  "Audi, vide, tace."         (hear, see, be silent;
-    ///                                            attested in Coke)
-    ///   - appeals:  "Audi alteram partem."      (hear the other side;
-    ///                                            Augustine, De Duabus Animabus)
-    ///   - quiet:    "De minimis non curat lex." (the law does not concern
-    ///                                            itself with trifles)
-    ///   - full:     "Status quo."               (the existing state)
-    ///   - recess:   "Otium cum dignitate."      (leisure with dignity;
-    ///                                            Cicero, Pro Sestio)
+    /// Footer line for the popover.
     var motto: String {
         if docketFull { return "Status quo." }
         if inRecess { return "Otium cum dignitate." }
@@ -260,7 +248,7 @@ enum State {
     }
 }
 
-// MARK: - Menubar glyph (outlined judicial wig)
+// MARK: - Menubar glyph (outlined courthouse)
 
 enum MenubarGlyph {
     /// Courthouse drawn as clean lines. One triangle outline for the
@@ -503,7 +491,7 @@ struct InkPalette {
 // MARK: - Popover shape (rounded rect with an upward arrow)
 
 /// Rounded rectangle with a soft, curved arrow protruding from the
-/// top centre - inspired by Earshot's menubar popover. The arrow uses
+/// top centre. The arrow uses
 /// cubic Beziers so it grows smoothly out of the top edge and meets at
 /// a gently-rounded peak rather than a sharp point. Used as both the
 /// background fill and the clip shape so the contour is continuous.
@@ -645,7 +633,7 @@ struct StatsPanel: View {
         }
     }
 
-    // Header: wig glyph + title/subtitle on the left; three small icon
+    // Header: courthouse glyph + title/subtitle on the left; three small icon
     // buttons on the right (digest, log, adjourn). Replaces the older
     // pill-row at the bottom and removes the duplicate "Quarantine"
     // shortcut (the stat cards already act as that entry point).

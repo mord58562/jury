@@ -1,17 +1,21 @@
 DESIGNING CLEAN MENUBAR SWIFT APPS
 ==================================
-Notes synthesised from building Jury (May 2026) and reading the
-production Earshot source. Target: macOS 13+, real-world builds on
+
+The design record for the AppKit menubar app in `swift-app/`: general
+notes on building menubar apps on macOS, written while building it.
+
+Notes synthesised from building Jury (May 2026) and from other
+AppKit menubar apps. Target: macOS 13+, real-world builds on
 macOS 26 Tahoe.
 
 
-1. ARCHITECTURE — POPOVER VS PANEL
+1. ARCHITECTURE - POPOVER VS PANEL
 ----------------------------------
 
 NSPopover is the right choice when your aesthetic matches the system
-look. Earshot uses `NSPopover` with `.transient` behaviour and
-`.thickMaterial` SwiftUI background — translucent, picks up the
-wallpaper, and looks coherent with system menubar items.
+look. The pairing that works is `NSPopover` with `.transient`
+behaviour and a `.thickMaterial` SwiftUI background: translucent,
+picks up the wallpaper, coherent with system menubar items.
 
 NSPopover is the WRONG choice when you've committed to a custom
 opaque surface (parchment, walnut, dark leather, etc.). On macOS 26
@@ -20,7 +24,7 @@ that you cannot disable via public API. The frame picks up whatever
 wallpaper is behind it; on a pink wallpaper your "walnut" panel goes
 pink. No fix.
 
-When you need full visual control, swap to a borderless NSPanel — and
+When you need full visual control, swap to a borderless NSPanel - and
 SUBCLASS it, because the stock NSPanel will refuse key status when
 borderless, which blocks mouse handling inside SwiftUI controls:
 
@@ -57,7 +61,7 @@ size eagerly:
 
 If you stay with NSPopover instead, `NSHostingController.sizingOptions
 = [.preferredContentSize]` (NOT `intrinsicContentSize`) is the option
-that actually drives popover resize. Earshot uses this.
+that actually drives popover resize.
 
 Pick by aesthetic. Translucent + system-matching → NSPopover. Opaque
 + custom surface → borderless NSPanel.
@@ -69,7 +73,7 @@ Pick by aesthetic. Translucent + system-matching → NSPopover. Opaque
 A menubar app where two processes own the same bundle ID is broken:
 the system has one of them in the menubar but clicks are dispatched
 to neither cleanly, and the user has no easy way out. Defend at
-launch — kill priors, wait briefly, force-terminate stragglers, then
+launch - kill priors, wait briefly, force-terminate stragglers, then
 proceed. Latest launch wins; never exit-on-collision (that traps the
 user when a stale instance is hanging the icon).
 
@@ -110,9 +114,9 @@ grey. A "status display" full of grey numbers looks wrong. The two
 escapes are (a) give every row a real click target, or (b) move to
 SwiftUI.
 
-The two paradigms can coexist. Earshot uses an NSPopover for the
-main panel AND a right-click NSMenu for presets. The status-item
-button registers for both `.leftMouseUp` and `.rightMouseUp`:
+The two paradigms can coexist: an NSPopover for the main panel AND
+a right-click NSMenu for secondary actions. The status-item button
+registers for both `.leftMouseUp` and `.rightMouseUp`:
 
     button.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
@@ -127,10 +131,10 @@ You get rich SwiftUI on left-click and native menu semantics on
 right-click without two windows fighting.
 
 
-4. MENUBAR ICON — DRAW IT YOURSELF
+4. MENUBAR ICON - DRAW IT YOURSELF
 ----------------------------------
 
-SF Symbols look fine on Retina and break on @1x external monitors —
+SF Symbols look fine on Retina and break on @1x external monitors -
 thin horizontal strokes get pixel-snapped away during rasterisation,
 leaving you with chart-bars missing their bottoms. The fix is to draw
 the glyph by hand into an NSImage:
@@ -157,22 +161,21 @@ Rules of thumb for 22×16 canvases:
     canvas, not 9×9 floating in the middle.
 
 For circular bumps: prefer `appendArc(withCenter:radius:startAngle:
-endAngle:clockwise:)` over hand-rolled cubic Beziers — controlled
-geometry, no surprises. BUT Earshot specifically uses a polyline
-approximation (96 segments) for its ring because `Path.addArc`'s
-angle-direction conventions can silently produce a spiral when start
-and end angles cross zero. If you start chasing a spiral bug, the
-polyline workaround is one line.
+endAngle:clockwise:)` over hand-rolled cubic Beziers - controlled
+geometry, no surprises. A polyline approximation (96 segments) is
+the fallback: `Path.addArc`'s angle-direction conventions can
+silently produce a spiral when start and end angles cross zero. If
+you start chasing a spiral bug, the polyline workaround is one line.
 
 Where two paths must meet, place the meeting point exactly and arrive
-with matching tangents. Earshot's "e" crossbar lands precisely at
-the ring's right tip with a horizontal tangent so there's no visible
-ledge where wave meets ring. Use a cubic Bezier whose final control
+with matching tangents. A crossbar meeting a ring should land
+precisely on the ring's tip with a horizontal tangent, so there is
+no visible ledge at the join. Use a cubic Bezier whose final control
 point sits at the destination with a small horizontal offset so the
 incoming tangent is horizontal.
 
 NSStatusItem.button auto-tints template images. Never bake colours
-into a menubar icon — you'll fight light/dark mode forever.
+into a menubar icon - you'll fight light/dark mode forever.
 
 When the icon also appears inside the popover header, the same
 NSImage works via Image(nsImage:).renderingMode(.template), with
@@ -180,7 +183,7 @@ NSImage works via Image(nsImage:).renderingMode(.template), with
 
 For icon + title header layout: use default HStack alignment
 (`.center`), NOT `.firstTextBaseline`. Images have no baseline, so
-firstTextBaseline aligns them to image-bottom — visibly dropped.
+firstTextBaseline aligns them to image-bottom - visibly dropped.
 
 
 5. CONNECTING A BORDERLESS PANEL TO THE MENUBAR
@@ -192,8 +195,8 @@ fixes together: a custom Shape with an arrow protruding from the
 top, and positioning so the arrow tip kisses the menubar bottom.
 
 The arrow needs cubic Beziers, not straight triangle sides. A sharp
-triangular peak looks amateurish; Earshot-style apps use a curved
-bump with horizontal tangents at both base and apex, so the arrow
+triangular peak looks amateurish. Use a curved bump with horizontal
+tangents at both base and apex, so the arrow
 grows smoothly out of the rectangle and the peak is a soft
 round-over:
 
@@ -247,34 +250,32 @@ hover-dwell, but inside a SwiftUI view hosted in a borderless
 NSPanel they're unreliable. Treat them as a "nice if it works"
 backup, not the primary discoverability mechanism.
 
-The reliable, idiomatic hint is the `arrow.up.right` SF Symbol —
-small (size 9, semibold), tertiary ink — placed in the corner of any
+The reliable, idiomatic hint is the `arrow.up.right` SF Symbol -
+small (size 9, semibold), tertiary ink - placed in the corner of any
 clickable card or row. This is the standard macOS "opens elsewhere"
-affordance — users read it without having to dwell. Pair with
+affordance - users read it without having to dwell. Pair with
 `.help()` for the long-form explanation on hover.
 
 Do not use NSCursor.pointingHand. Apple's HIG reserves it for
 web-style hyperlinks; it reads as "this isn't quite a real button"
 in a native app.
 
-Status-conveying via existing UI elements > new UI elements. Earshot
-recolours its bypass glyph to accent-blue when bypass is engaged
-rather than adding a "Bypass" subtitle — the icon itself signals
-state, so a duplicate label is redundant. The pattern generalises:
-state should be communicated by a single canonical element, not
-echoed across three.
+Status-conveying via existing UI elements > new UI elements.
+Recolouring a glyph to the accent colour when a mode is engaged
+beats adding a subtitle that says the same thing - the icon already
+signals state, so the duplicate label is redundant. State should be
+communicated by a single primary element, not echoed across three.
 
 
-7. VISUAL FINISH — MATERIALS, COLOUR, TYPE
+7. VISUAL FINISH - MATERIALS, COLOUR, TYPE
 ------------------------------------------
 
 `.regularMaterial` / `.thickMaterial` are right when you want
-translucent vibrancy on top of whatever's behind the app. Earshot
-uses .thickMaterial throughout because that vibrancy IS the
-aesthetic.
+translucent vibrancy on top of whatever's behind the app. Use
+.thickMaterial throughout when that vibrancy IS the aesthetic.
 
 When you've committed to a custom opaque surface (parchment, walnut,
-etc.), material is wrong — paper and wood are opaque, and the
+etc.), material is wrong - paper and wood are opaque, and the
 wallpaper-tinted vibrancy fights your aesthetic. Use a LinearGradient
 between two near-identical colour stops differing by ~3% lightness:
 subtle enough you only notice if you go looking, just enough that it
@@ -298,7 +299,7 @@ palette type:
 
 Read once per view body via `@Environment(\.colorScheme)`. Apply
 uniformly. Keep signal colours (red for warnings, orange for urgency)
-OUTSIDE the theme — they must mean the same thing regardless of
+OUTSIDE the theme - they must mean the same thing regardless of
 palette.
 
 Typography: combine SF Pro (legibility) for body text with Apple's
@@ -312,7 +313,7 @@ regardless of intrinsic sizes. Don't trust default sizing to align
 disparate elements.
 
 
-8. LAZY UPDATES — NO TIMERS, NO POLLING
+8. LAZY UPDATES - NO TIMERS, NO POLLING
 ---------------------------------------
 
 Don't poll. Read state on demand when the popover opens. For NSMenu,
@@ -337,20 +338,18 @@ For NSPopover, the same idea via delegate callbacks:
         state.setPopoverVisible(false)
     }
 
-Earshot uses this to gate expensive background work (audio level
-meter ticker, @Published level storm) on popover visibility. The
-popover is closed >99% of the time; running level metering only
-when it's open dropped CPU substantially.
+Use this to gate expensive background work (metering tickers,
+@Published update storms) on popover visibility. The popover is
+closed >99% of the time; running that work only when it is open
+drops CPU substantially.
 
-Don't refresh fresh state synchronously in the toggle hot path.
-Earshot's comment is instructive: "Don't call state.refreshDevices()
-here — it's a synchronous CoreAudio sweep that blocks on coreaudiod,
-and if coreaudiod is mid-negotiation with a flaky output device the
-popover open can stall for seconds. The CoreAudio device-change
-listener already refreshes the device lists asynchronously when the
-system changes, so the cached lists are good enough to render with."
-The lesson generalises: use cached state in the hot path, refresh
-async on external signals.
+Don't refresh state synchronously in the toggle hot path. A
+synchronous system sweep on popover open - enumerating audio
+devices, probing volumes, walking a directory tree - can stall the
+open for seconds when the underlying daemon is mid-negotiation. Let
+a change listener refresh the cached lists asynchronously and render
+from the cache: use cached state in the hot path, refresh async on
+external signals.
 
 Cache DateFormatter and ISO8601DateFormatter as `static let` in an
 enum. Each instance carries locale + calendar state and is not cheap
@@ -358,12 +357,12 @@ to allocate. Both types are thread-safe for reads after their format
 options are configured.
 
 
-9. CLICK HANDLING — DEFERRAL AND DEBOUNCING
+9. CLICK HANDLING - DEFERRAL AND DEBOUNCING
 -------------------------------------------
 
 Two distinct race classes catch every menubar app.
 
-First: synchronous "click does nothing" — the click event is still
+First: synchronous "click does nothing" - the click event is still
 being processed when you call `popover.show()` (or NSPanel
 `orderFront`), so AppKit drops it. Defer the show by one runloop
 tick:
@@ -376,10 +375,10 @@ tick:
         // self.panel.makeKeyAndOrderFront(nil)
     }
 
-Second: with NSPanel only — a global click monitor installed to
+Second: with NSPanel only - a global click monitor installed to
 catch click-outside-to-dismiss fires for the system-owned menubar
 click that just opened the panel, immediately closing it. Defer the
-monitor install by 100–200 ms:
+monitor install by 100 to 200 ms:
 
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
         guard let self = self, self.panel != nil else { return }
@@ -390,7 +389,7 @@ monitor install by 100–200 ms:
         }
     }
 
-Tear down the monitor on close — leaking it leaks the controller.
+Tear down the monitor on close - leaking it leaks the controller.
 
 Debounce the toggle. A 0.15 s window prevents accidental
 double-clicks from reopening immediately after close:
@@ -405,7 +404,7 @@ double-clicks from reopening immediately after close:
 
 Use `popover.close()` rather than `popover.performClose(nil)`. The
 latter routes through the responder chain and bounces if a sheet is
-up on top of the popover — meaning the menubar icon stops closing
+up on top of the popover - meaning the menubar icon stops closing
 the popover the moment a sheet opens. close() tears down regardless;
 the sheet's hosting window closes with it.
 
@@ -434,7 +433,7 @@ For NSPanel with the arrow shape from §5:
 -----------------------------
 
 NSPopover doesn't forward to the standard responder chain. Cmd-Z,
-Cmd-Q, custom shortcuts — none reach you unless you install a local
+Cmd-Q, custom shortcuts - none reach you unless you install a local
 NSEvent monitor while the popover is visible:
 
     @State private var keyMonitor: Any?
@@ -469,15 +468,15 @@ popover and accidentally quit the daemon.
 
 If you do run a periodic task (a recovery watchdog, a meter
 refresher, a persist backstop), add it to `RunLoop.main` in
-`.common` mode — NOT the default `.default`:
+`.common` mode - NOT the default `.default`:
 
     let timer = Timer(timeInterval: 1.0, repeats: true) { _ in ... }
     RunLoop.main.add(timer, forMode: .common)
 
 SwiftUI popover opens push the runloop into `.eventTracking`. A
-`.default`-mode timer stops firing while the popover is open. Earshot
-got bitten by this specifically with its watchdog timer — recovery
-checks froze the moment the user opened the UI.
+`.default`-mode timer stops firing while the popover is open. A
+watchdog timer registered in `.default` mode freezes the moment the
+user opens the UI, which is exactly when you need it.
 
 
 13. APP BUNDLE & LOGIN ITEM
@@ -576,7 +575,7 @@ Two patterns from production:
 16. MEMORY BUDGETS (REAL NUMBERS)
 ---------------------------------
 
-Pure AppKit NSStatusItem app, stripped:        ~10–15 MB RSS
+Pure AppKit NSStatusItem app, stripped:        ~10 to 15 MB RSS
 + SwiftUI hosting, stripped:                   ~29 MB RSS
 + SwiftUI hosting, unstripped:                 ~47 MB RSS
 + NSPopover translucent material:              +10 MB
@@ -611,7 +610,7 @@ possible; cache or share the things you can't.
   tick (DispatchQueue.main.async) to dodge "click does nothing"
   races.
 
-- For NSPanel, ALSO defer global event monitor install by 100–200 ms,
+- For NSPanel, ALSO defer global event monitor install by 100 to 200 ms,
   or the system-owned menubar click trips it and closes the panel
   immediately on first open.
 
@@ -646,12 +645,12 @@ possible; cache or share the things you can't.
   it, a 96-segment polyline approximation always works.
 
 - A status item created with NSStatusItem.variableLength sizes
-  itself to the image; .squareLength forces a 22pt square. Earshot
-  uses .variableLength; Jury uses .squareLength. Pick by predictable
-  positioning needs.
+  itself to the image; .squareLength forces a 22pt square. Pick by
+  predictable positioning needs: .variableLength for a title that
+  changes width, .squareLength for a fixed icon.
 
 - Image content drawn in NSImage(size:flipped:) uses a non-flipped
-  coordinate system by default — y=0 is at the bottom.
+  coordinate system by default - y=0 is at the bottom.
 
 - LSUIElement = true is necessary but not sufficient. You also
   need setActivationPolicy(.accessory) in main() or the app
@@ -662,7 +661,7 @@ possible; cache or share the things you can't.
   accessory app. Don't use `open` in the plist.
 
 - HStack(alignment: .firstTextBaseline) is wrong for icon+title
-  headers — Image has no baseline, so it aligns to image-bottom.
+  headers - Image has no baseline, so it aligns to image-bottom.
   Use default `.center`.
 
 - `strip` invalidates code signatures. Always run codesign AFTER
@@ -678,27 +677,25 @@ possible; cache or share the things you can't.
   callbacks.
 
 
-18. VOICE & CHARACTER — WHERE IT BELONGS
+18. VOICE & CHARACTER - WHERE IT BELONGS
 ----------------------------------------
 
 You can give a small app real character without making it harder to
 use. Confine the metaphor to typography, colour, ornamental
-flourishes, and ambient text — don't let it infect functional labels.
+flourishes, and ambient text - don't let it infect functional labels.
 
 What works:
   - Serif title in a serif typeface (New York)
   - Custom palette named after the metaphor (ink / parchment / walnut)
-  - Tiny ambient line at the foot — a contextual Latin motto that
-    changes meaningfully with state
-  - Status conveyed by recolouring an existing element (Earshot
-    tints its bypass glyph accent-blue when bypass is engaged)
-  - Rare, low-stakes easter eggs (Earshot's 1-in-10 "O'Toole"
-    tooltip on popover open)
+  - A small ambient line at the foot, below the data, that carries
+    the register without carrying information
+  - Status conveyed by recolouring an existing element rather than
+    adding a label
 
 What doesn't work:
-  - Renaming "Quarantined" to "In custody"
-  - Renaming "Last run" to "Last in session"
-  - Renaming "Quit" to "Adjourn"
+  - Renaming a status count to a term from the metaphor
+  - Renaming a timestamp label to a term from the metaphor
+  - Renaming any menu item a user reaches for under pressure
 
 Functional labels must be unambiguous. The character emerges from
 the surrounding typography and ornament, not from the words doing
@@ -706,7 +703,7 @@ the work. "Mostly neutral with occasional jokes" reads as
 inconsistent; a sustained, dry metaphor confined to ornamentation
 is durable.
 
-If you want voice in your app, pick the register and commit — but
+If you want voice in your app, pick the register and commit - but
 let it live in the spaces between the data, not on top of it.
 
 
